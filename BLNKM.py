@@ -2,6 +2,7 @@ import smbus
 import time
 ADDR_BLNKM = 0x09#Smart LED
 bus = smbus.SMBus(1)
+#solves issue if smbus file is not found on new image https://github.com/johnbryanmoore/VL53L0X_rasp_python/issues/13
 
 def initialize():
     bus.write_block_data(ADDR_BLNKM, 0x0, [0x6f]) #stop script
