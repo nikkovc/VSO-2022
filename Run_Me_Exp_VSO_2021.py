@@ -416,8 +416,9 @@ while True:
 		disable_pin = 23
 
 		# Define gains for PID control
-		K_p = 0.010
-		K_i = 0.8
+		K_p = 0.015 #0.010
+		#K_i = 0.8
+		K_i = 2
 		K_d = 0.0001
 
 		e_D = 0

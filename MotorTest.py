@@ -64,7 +64,10 @@ while True:
             while(1==1):
                 current_position = encoder.readCounter()
                 #current_position = int(round(encoder.readCounter()/scale_perc))
-                print ('Current position = %s %%' % int(current_position))                           
+                readTransaction = [encoder.READ_COUNTER]
+                test = encoder.spi.xfer2(readTransaction)
+                print (test)  
+                #print ('Current position = %s %%' % int(current_position))                           
 
         if user_input == 'quit':
             wp.pwmWrite(pwm_pin, 0)
