@@ -26,7 +26,7 @@ hall_pin_right = 15
 
 
 # Initialize motor encoder
-CSX = 0			# chip select channel (0 or 1)
+CSX = 0		# chip select channel (0 or 1)
 CLK = 1000000	# SPI clock speed (0.5 MHz)
 BTMD = 4		# bytemode resolution of counter (1-4)
 encoder = LS7366R(CSX, CLK, BTMD)

@@ -1,5 +1,6 @@
 import mpu6050_lib2
-from Functions_VSOV1 import *
+#from Functions_VSOV1 import *
+from Functions_Exp_VSO_2021 import *
 import traceback
 
 # Set up wiringpi pins to be GPIO
@@ -15,7 +16,7 @@ wp.pinMode(pwm_pin, 2)
 try:
     current_position = encoder.readCounter() / scale
 except:
-    print "Encoder Counter is being lame. Fix it Human. Going to quit."
+    print('Encoder Counter is being lame. Fix it Human. Going to quit.')
     encoder.close()
     time.sleep(1)
     quit()
@@ -37,9 +38,9 @@ t_start = time.time()
 #======================================================================================================                         
 while True:
     try: 
-        user_input = str(raw_input('Test another position? (y/n)'))
-        if user_input == 'y':
-            user_input = raw_input('Desired position in % travel (0 to 100): ')
+        user_input = str(input('test slider movement, test encoder, quit'))
+        if user_input == 'test slider movement':
+            user_input = input('Desired position in % travel (0 to 100): ')
             current_position = encoder.readCounter() / scale_perc
             user_input = eval(user_input)
 
@@ -48,17 +49,24 @@ while True:
             #current_angle = SingleAngle_I2C()-calib_offset
             #print math.fabs(current_angle)
             #if math.fabs(current_angle)<1.5:                     
-            if 0 <= user_input <= 110: #If user_input is within stroke
+            if 0 <= user_input <= 100: #If user_input is within stroke
                 desired_position = user_input * scale_perc
-                sliderPosition(desired_position)
+                #sliderPosition(desired_position)
                 current_position = int(round(encoder.readCounter()/scale_perc))
-                print 'Current position = %s %%' % current_position                             
+                print ('Current position = %s %%' % current_position)                             
             else:
-                print "Out of range. Please enter a value between 0 and 100."
-                print 'user_input = ', user_input 
+                print("Out of range. Please enter a value between 0 and 100.")
+                print('user_input = ', user_input)
             #else:
                 #print 'Ankle is flexed too much!' 
-        if user_input == 'n':
+
+        if user_input == 'test encoder':
+            while(1==1):
+                current_position = encoder.readCounter()
+                #current_position = int(round(encoder.readCounter()/scale_perc))
+                print ('Current position = %s %%' % int(current_position))                           
+
+        if user_input == 'quit':
             wp.pwmWrite(pwm_pin, 0)
             encoder.close()
             quit()
