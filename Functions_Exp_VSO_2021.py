@@ -31,13 +31,13 @@ CLK = 1000000	# SPI clock speed (0.5 MHz)
 BTMD = 4		# bytemode resolution of counter (1-4)
 encoder = LS7366R(CSX, CLK, BTMD)
 scale = 12578.0 # encoder conversion scale (counts to mm)
-scale_perc = 7145 #encoder conversion scale (counts to percentage throw)
+scale_perc = 7435.25 #encoder conversion scale (counts to percentage throw)
 current_limit = 10 #Amps.
 slider_max_perc = 98;
 slider_min_mm = 1;
 slider_max_mm = slider_max_perc*scale_perc/scale #stiffest slider position in mm allowed (first number is % of stroke)
 plantar_switch = 5
-dorsi_switch = -10
+dorsi_swynitch = -10
 
 # Stole these functions from Max's code (max_functions_pi.py)
 

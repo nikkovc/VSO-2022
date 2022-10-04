@@ -458,9 +458,8 @@ while True:
 		left, right = readHall()
 
 
-		#try:
-		if(True): #Used to debug because try operation won't show errors
-
+		#if(True): #Used to debug because try operation won't show errors
+		try:
 			#This is the primary control loop	
 			while True:
 				#Safety first
@@ -649,8 +648,8 @@ while True:
 				if record_yn == 'y':
 					AddDataPoint(file_name,[time.time()-t0, current_position_mm, current_position_perc, ConvertPositionToStiffness(current_position_mm), cur_angle, cur_vel, gyro_pitch, x_des_mm, encoder.readCounter(),motor_current_filtered, in_swing])
 
-		#except:
-		else: #Used to debug because try operation won't show errors
+		except:
+		#else: #Used to debug because try operation won't show errors
 			if to_do == 'dial':
 				wp.pwmWrite(pwm_pin, 0)
 				print('Interrupted...')
