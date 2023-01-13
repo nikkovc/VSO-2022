@@ -1,0 +1,49 @@
+function fourierDerivCoeffs3P = returnFourierBasis_DerivEval_dincline(phase,stepLength,incline, N)
+
+
+inclineFuncs = returnBezierDerivLinear(incline);
+ stepLengthFuncs = returnBezierLinear(stepLength);
+ phaseFuncs = returnFourier(phase, N);
+ 
+ numInclineFuncs = length(inclineFuncs);
+ numStepLengthFuncs = length(stepLengthFuncs);
+ numPhaseFuncs = length(phaseFuncs);
+    
+ fourierDerivCoeffs3P = kron(inclineFuncs, kron( stepLengthFuncs,  phaseFuncs));
+%  N=1;
+%  for ii = 1:numInclineFuncs
+%      inclineFunc = inclineFuncs(ii);
+%      
+%      for jj = 1:numStepLengthFuncs
+%          stepLengthFunc = stepLengthFuncs(jj);
+%          
+%          for kk = 1:numPhaseFuncs
+%              phaseFunc = phaseFuncs(kk);
+%              fourierDerivCoeffs3P(N) = inclineFunc * stepLengthFunc * phaseFunc;
+%              N = N + 1;
+%          end
+%          
+%      end
+%      
+%  end
+ 
+ 
+ 
+%  bezierDerivCoeffs3P = [(incline).*stepLength.*-3*(1-phase)^2,...
+%      (incline).*stepLength.* (3*(1-phase)^2 - 6*(1 - phase)*phase), ...
+%      (incline).*stepLength.*(6*(1 - phase)*phase - 3*phase^2),...
+%      (incline).*stepLength.*3*phase^2,...
+%      (incline).*(1 - stepLength).*-3*(1-phase)^2, ...
+%      (incline).*(1 - stepLength).*(3*(1-phase)^2 - 6*(1 - phase)*phase), ...
+%      (incline).*(1 - stepLength).* (6*(1 - phase)*phase - 3*phase^2),...
+%      (incline).*(1 - stepLength).*3*phase^2,...
+%      (1 - incline).*stepLength.*-3*(1-phase)^2,...
+%      (1 - incline).*stepLength.* (3*(1-phase)^2 - 6*(1 - phase)*phase), ...
+%      (1 - incline).*stepLength.*(6*(1 - phase)*phase - 3*phase^2),...
+%      (1 - incline).*stepLength.*3*phase^2,...
+%      (1 - incline).*(1 - stepLength).*-3*(1-phase)^2, ...
+%      (1 - incline).*(1 - stepLength).*(3*(1-phase)^2 - 6*(1 - phase)*phase), ...
+%      (1 - incline).*(1 - stepLength).* (6*(1 - phase)*phase - 3*phase^2),...
+%      (1 - incline).*(1 - stepLength).*3*phase^2];
+
+end
