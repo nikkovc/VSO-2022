@@ -65,7 +65,6 @@ t_start = time.time()
 
 #==============================================================================================================
 
-LED.fadetoRGB(102,0,204) # Purple
 
 # Check battery voltage and provide warnings
 # battery_V = check_battery()
@@ -195,15 +194,15 @@ if user_input == 'y':
 #Constants
 equilibrium = 0 #Unloaded VSPA Ankle Angle
 
-#Needed for shank pitch velocity calculations
-gyro_pitch_window = [0,0,0]
+#Needed for shank pitch velocity or vertical acceleartion calculations
+imu_window = [0,0,0]
 
 #Constants
 R2D = 180.0/3.141592 #Converting from Radians to Degrees
 
 
 while True:
-	to_do = str(input('What do you want to do? (quit, home slider, read slider position, read ankle angle, read dial, read imu, record, dial, stiffness, gait detection) '))
+	to_do = str(input('What do you want to do? (quit, home slider, read hall, read slider position, read ankle angle, read dial, read imu, record, dial, stiffness, gait detection) '))
 #======================================================================================================
 
 	if to_do == 'quit':
@@ -245,7 +244,7 @@ while True:
 #======================================================================================================
 	if to_do == 'read ankle angle':
 		for i in range(50):
-			# LED.fadetoRGB(102,0,204) # Purple #Checking Data/No Action
+			LED.fadetoRGB(102,0,204) # Purple #Checking Data/No Action
 			current_angle = SingleAngle_I2C()-calib_offset_unloaded
 			print('angle = ', current_angle)
 			# print 'stiffness =', current_position
@@ -262,20 +261,26 @@ while True:
 			time.sleep(0.1)
 #======================================================================================================			
 	if to_do == 'read imu':
-		for i in range(50):
+		for i in range(100000):
 			#imu_reading = IMU_TRIAL()
 			#print 'xacc= ', imu_reading
-			gyro_pitch_window.append(IMU_TRIAL())
-			gyro_pitch_window.pop(0)
-			gyro_pitch = numpy.mean(gyro_pitch_window)
-			print('Shank pitch velocity of %s unit unknown' % gyro_pitch)
-			time.sleep(0.1)
+			imu_window.append(IMU_TRIAL())
+			imu_window.pop(0)
+			imu = numpy.mean(imu_window)
+			#print('Shank pitch velocity of %s unit unknown' % gyro_pitch)
+			print('IMU vertical acceleration of %s unit unknown' % imu)
+			#time.sleep(0.1)
 
 #=========================================================================================================
 	if to_do == 'read hall':
+		switch = 0
 		for i in range(100):
-			switch = Detectswitch()
-			print(switch)
+			left, right = readHall()
+			cur_angle = SingleAngle_I2C() - calib_offset_unloaded
+			#switch, left, right = Detectswitch(switch, left, right, cur_angle)
+			#print(switch)
+			print('left Hall', left)
+			print('right Hall', right)
 			#print 'Switched at ', switch
 			# print 'stiffness =', current_position
 			time.sleep(0.1)
@@ -315,17 +320,17 @@ while True:
 
 #===================================================================================
 	if to_do == 'dial' or to_do == 'stiffness' or to_do =='gait detection':
-		LED.fadetoRGB(0,255,0) # Green
 		# check_battery_or_quit() #Only compatible with boards 7-9
 		current_position_mm = round(encoder.readCounter()/scale,2)
 		current_position_perc = round(encoder.readCounter() / scale_perc,2)
 		last_angles = [0,0,0]
 		last_vels = [0,0,0]
-		gyro_pitch_window = [0,0,0]
-		in_swing = 0
+		imu_window = [0,0,0]
+		in_swing = 1
 		in_stand = 0
 		starting_position = current_position_mm
 		arrivedFlag = False
+		heel_strike = 0
 
 		# We tryna record here?
 		record_yn = str(input('do you want to record? y/n:'))
@@ -333,7 +338,7 @@ while True:
 			file_name = input('Name the file: ') + '.csv'
 			with open(file_name, "wb") as myfile:
 				writer = csv.writer(myfile, delimiter=',')
-			AddDataPoint(file_name,['Time', 'Slider Position (mm)', 'Slider Position (%)', 'Stiffness (Nm/rad)', 'Joint Angle (deg)', 'Joint Angle Velocity (deg/s)', 'Pitch Velocity' 'Desired Position [mm]', 'Motor Encoder (cts)','Motor Current',"inSwing"])
+			AddDataPoint(file_name,['Time', 'Slider Position (mm)', 'Slider Position (%)', 'Stiffness (Nm/rad)', 'Joint Angle (deg)', 'Joint Angle Velocity (deg/s)', 'Vertical Acceleration', 'Desired Position [mm]', 'Motor Encoder (cts)','Motor Current',"inSwing"])
 		elif record_yn != 'n':
 			keepAsking = 1
 			while keepAsking:
@@ -343,7 +348,7 @@ while True:
 					file_name = input('Name the file: ') + '.csv'
 					with open(file_name, "wb") as myfile:
 						writer = csv.writer(myfile, delimiter=',')
-					AddDataPoint(file_name,['Time', 'Slider Position (mm)', 'Slider Position (%)', 'Stiffness (Nm/rad)', 'Joint Angle (deg)', 'Joint Angle Velocity (deg/s)','Pitch Velocity','Desired Position [mm]', 'Motor Encoder (cts)','Motor Current',"inSwing"])
+					AddDataPoint(file_name,['Time', 'Slider Position (mm)', 'Slider Position (%)', 'Stiffness (Nm/rad)', 'Joint Angle (deg)', 'Joint Angle Velocity (deg/s)','Vertical Acceleration','Desired Position [mm]', 'Motor Encoder (cts)','Motor Current',"inSwing"])
 				elif record_yn == 'n':
 					keepAsking = 0
 
@@ -458,8 +463,8 @@ while True:
 		left, right = readHall()
 
 
-		#try:
-		if(True): #Used to debug because try operation won't show errors
+		try:
+		#if(True): #Used to debug because try operation won't show errors
 
 			#This is the primary control loop	
 			while True:
@@ -512,9 +517,10 @@ while True:
 						#raise Exception('Made it!') #testing
 
 				#Are we in swing? Sample sensors and find out
-				gyro_pitch_window.append(IMU_TRIAL())
-				gyro_pitch_window.pop(0)
-				gyro_pitch = numpy.mean(gyro_pitch_window)
+				imu_window.append(IMU_TRIAL())
+				#imu_window.append(0)
+				imu_window.pop(0)
+				imu = numpy.mean(imu_window)
 
 
 				last_position = current_position
@@ -530,9 +536,11 @@ while True:
 
 				#Check if we are in swing
 				#in_swing, angles, cur_vel, CDflag = InSwingDetection(angles, cur_angle, CDflag, cur_stiff)
-				in_swing, in_stand, angles, CDflag, cur_vel = InSwingDetection_Summer22(angles, cur_angle, gyro_pitch, CDflag, cur_stiff, in_swing, in_stand, current_time, time_reset, last_vels)
+				in_swing, in_stand, angles, CDflag, cur_vel = InSwingDetection_Fall22(angles, cur_angle, imu, CDflag, cur_stiff, in_swing, in_stand, current_time, time_reset, last_vels)
+				
+				#PRINT VALUES DURING GAIT DETECTION
 				# print(cur_vel)
-				print(cur_angle)
+				#print(cur_angle)
 				#in_swing  = 1 #testing
 				#i = i+1 #testing
 				#if (i/200-int(i/200))==0: #testing
@@ -554,8 +562,8 @@ while True:
 						LED.fadetoRGB(0,255,0) # Green
 					#print cur_angle
 					if(gait_flag):
-						print('SWING!!')
-						gait_flag = 0;
+						#print('SWING!!')
+						gait_flag = 0
 					
 					current_position = encoder.readCounter()
 					v_rot = (current_position - last_position) / dt  # in counts/s
@@ -636,7 +644,7 @@ while True:
 					# print calib_offset_unloaded, cur_angle 
 					LED.fadetoRGB(255,0,5) # Fade to Red
 					if(gait_flag==0):
-						print('STANCE!!')
+						#print('STANCE!!')
 						gait_flag = 1
 
 
@@ -647,10 +655,10 @@ while True:
 					print('The slider position is:', current_position_mm, 'mm ', current_position_perc,'% of stiffness:', round(ConvertPositionToStiffness(current_position_mm),1))
 
 				if record_yn == 'y':
-					AddDataPoint(file_name,[time.time()-t0, current_position_mm, current_position_perc, ConvertPositionToStiffness(current_position_mm), cur_angle, cur_vel, gyro_pitch, x_des_mm, encoder.readCounter(),motor_current_filtered, in_swing])
+					AddDataPoint(file_name,[time.time()-t0, current_position_mm, current_position_perc, ConvertPositionToStiffness(current_position_mm), cur_angle, cur_vel, imu, x_des_mm, encoder.readCounter(),motor_current_filtered, in_swing])
 
-		#except:
-		else: #Used to debug because try operation won't show errors
+		except:
+		#else: #Used to debug because try operation won't show errors
 			if to_do == 'dial':
 				wp.pwmWrite(pwm_pin, 0)
 				print('Interrupted...')
@@ -681,5 +689,3 @@ while True:
 				break
 
 wp.pwmWrite(pwm_pin, 0)
-
-LED.fadetoRGB(102,0,204) # Purple #Checking Data/No Action

@@ -136,9 +136,11 @@ class mpu6050:
         If g is False, it will return the data in m/s^2
         Returns a dictionary with the measurement results.
         """
-        x = self.read_i2c_word(self.ACCEL_XOUT0)
+        #x = self.read_i2c_word(self.ACCEL_XOUT0)
+        x = 0
         y = self.read_i2c_word(self.ACCEL_YOUT0)
-        z = self.read_i2c_word(self.ACCEL_ZOUT0)
+        #z = self.read_i2c_word(self.ACCEL_ZOUT0)
+        z = 0
 
         accel_scale_modifier = None
         accel_range = self.read_accel_range(True)
@@ -246,10 +248,10 @@ if __name__ == "__main__":
     mpu = mpu6050(0x68)
     print(mpu.get_temp())
     accel_data = mpu.get_accel_data()
-    print(accel_data['x'])
+    #print(accel_data['x'])
     print(accel_data['y'])
-    print(accel_data['z'])
-    gyro_data = mpu.get_gyro_data()
-    print(gyro_data['x'])
-    print(gyro_data['y'])
-    print(gyro_data['z'])
+    #print(accel_data['z'])
+    #gyro_data = mpu.get_gyro_data()
+    #print(gyro_data['x'])
+    #print(gyro_data['y'])
+    #print(gyro_data['z'])

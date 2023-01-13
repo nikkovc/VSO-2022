@@ -4,6 +4,8 @@
 
 # Dependencies: time, numpy, csv, wiringpi, LS7366R.py
 
+#make I2C bus go faster, overclock pi, hard code I2C library
+
 # Import functions
 import time
 import numpy
@@ -31,7 +33,7 @@ CLK = 1000000	# SPI clock speed (0.5 MHz)
 BTMD = 4		# bytemode resolution of counter (1-4)
 encoder = LS7366R(CSX, CLK, BTMD)
 scale = 12578.0 # encoder conversion scale (counts to mm)
-scale_perc = 7145 #encoder conversion scale (counts to percentage throw)
+scale_perc = 7169 #encoder conversion scale (counts to percentage throw)
 current_limit = 10 #Amps.
 slider_max_perc = 98;
 slider_min_mm = 1;
@@ -55,7 +57,7 @@ my_data = numpy.zeros((50000, 2))
 adc = MCP3008(spi=SPI.SpiDev(0, 1))
 
 #Initialize IMU
-mpu2 = mpu6050_lib2.mpu6050(0X69)
+mpu2 = mpu6050_lib2.mpu6050(0X68)
 
 #Clear error flag?
 data1 = 0b01000000
@@ -137,6 +139,8 @@ def SingleAngle_I2C():	#reports back the current ankle angle
 	value1 = (recvData1*360.0/256.0)/64.0
 	value2 = recvData2*64*360/16384.0
 	angle = value1 + value2
+	if(angle>300): #sometimes the encoder flips 360 degrees for reasons I don't understand (Nikko)
+		angle = angle-360
 	return angle
 
 
@@ -146,9 +150,9 @@ def SingleAngle_I2C_Dial():	#reports back the current ankle angle
 	recvData2 = wp.wiringPiI2CReadReg8(h2,0xFE)
 	value1 = (recvData1*360.0/256.0)/64.0
 	value2 = recvData2*64*360/16384.0
-	encoder_offset = 0
-	angle = value1 + value2 - encoder_offset
+	angle = value1 + value2
 	return angle
+
 
 def ReadDialCont(last_angle, number_turns, first_angle): #This allows a dial with infinite rotation to be used.
 	raw_angle = SingleAngle_I2C_Dial() - first_angle
@@ -214,19 +218,6 @@ def InSwingDetection_Spr22(last_angles, cur_angle, CDflag, cur_stiff, in_swing, 
 		else:
 			return in_swing, in_stand, last_angles, CDflag, cur_vel
 
-	# if cur_vel < -0.6 and cur_angle > 0 and cur_angle < 8 and in_swing == False and CDflag == 1 and wait_time > 0.15:
-	# 	CDflag = 0
-	# 	in_swing = True
-	# 	return in_swing, last_angles, CDflag, cur_vel
-	# elif cur_angle > 6 and in_swing == True and CDflag == 0:
-	# 	CDflag = 1
-	# 	in_swing = False
-	# 	#i = 0
-	# 	time_reset = current_time;
-	# 	return in_swing, last_angles, CDflag, cur_vel
-	# else:
-	# 	#i += 1
-	# 	return in_swing, last_angles, CDflag, cur_vel
 
 def InSwingDetection_Summer22(last_angles, cur_angle, gyro_pitch, CDflag, cur_stiff, in_swing, in_stand, current_time,time_reset, last_vels):
 	last_angles.append(cur_angle)
@@ -236,8 +227,6 @@ def InSwingDetection_Summer22(last_angles, cur_angle, gyro_pitch, CDflag, cur_st
 	last_vels.append(last_vel)
 	last_vels.pop(0)
 	cur_vel = numpy.mean(last_vels)
-	
-	wait_time = current_time
 
 	if cur_angle < -12 or cur_angle > 12: #8, 18
 		CDflag = 1
@@ -254,6 +243,49 @@ def InSwingDetection_Summer22(last_angles, cur_angle, gyro_pitch, CDflag, cur_st
 			in_swing = False
 			return in_swing, in_stand, last_angles, CDflag, cur_vel
 		if cur_vel > 1 and cur_angle > 0: #1, 5
+			CDflag = 0
+			in_swing = True
+			in_stand = False
+			return in_swing, in_stand, last_angles, CDflag, cur_vel
+		else:
+			return in_swing, in_stand, last_angles, CDflag, cur_vel
+
+
+
+
+
+
+
+
+
+def InSwingDetection_Fall22(last_angles, cur_angle, imu, CDflag, cur_stiff, in_swing, in_stand, current_time,time_reset, last_vels):
+	last_angles.append(cur_angle)
+	last_angles.pop(0)
+
+	last_vel = last_angles[-2]-last_angles[-3]
+	last_vels.append(last_vel)
+	last_vels.pop(0)
+	cur_vel = numpy.mean(last_vels)
+	
+
+	if (cur_angle > 7 or cur_angle < -6) and in_swing == True:
+		print('STANCE!!')
+		CDflag = 1
+		in_swing = False
+		in_stand = False
+		#heel_strike = current_time
+		return in_swing, in_stand, last_angles, CDflag, cur_vel
+	else:
+		if imu>-4 and in_swing == True:
+			print('IMU STANCE!!')
+			CDflag = 1
+			in_swing = False
+			in_stand = False
+			#heel_strike = current_time
+			return in_swing, in_stand, last_angles, CDflag, cur_vel
+		#buffer_time = current_time-heel_strike
+		if cur_vel > 1 and cur_angle < 7 and cur_angle > -6 and in_swing == False:
+			print('SWING!!')
 			CDflag = 0
 			in_swing = True
 			in_stand = False
@@ -377,12 +409,13 @@ def home():
 			keep_going = False
 
 def IMU_TRIAL():
-	gyro_data = mpu2.get_gyro_data()
-	gyro_pitch = gyro_data['x']
-	#acc_data = mpu2.get_accel_data()
-	#acc_pitch = acc_data['x']
+	#gyro_data = mpu2.get_gyro_data()
+	#gyro_pitch = gyro_data['x']
+	acc_data = mpu2.get_accel_data()
+	accel_y = acc_data['y'] #vertical
 	#return [acc_pitch,gyro_data]
-	return gyro_pitch
+	#return gyro_pitch
+	return accel_y
 
 def readHall():
 	if wp.digitalRead(hall_pin_left) == 1:
