@@ -39,7 +39,7 @@ slider_max_perc = 98;
 slider_min_mm = 1;
 slider_max_mm = slider_max_perc*scale_perc/scale #stiffest slider position in mm allowed (first number is % of stroke)
 plantar_switch = 5
-dorsi_switch = -10
+dorsi_swynitch = -10
 
 # Stole these functions from Max's code (max_functions_pi.py)
 

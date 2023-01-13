@@ -657,8 +657,8 @@ while True:
 				if record_yn == 'y':
 					AddDataPoint(file_name,[time.time()-t0, current_position_mm, current_position_perc, ConvertPositionToStiffness(current_position_mm), cur_angle, cur_vel, imu, x_des_mm, encoder.readCounter(),motor_current_filtered, in_swing])
 
-		except:
-		#else: #Used to debug because try operation won't show errors
+		#except:
+		else: #Used to debug because try operation won't show errors
 			if to_do == 'dial':
 				wp.pwmWrite(pwm_pin, 0)
 				print('Interrupted...')
