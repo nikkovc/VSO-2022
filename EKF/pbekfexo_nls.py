@@ -14,7 +14,10 @@ gc.disable()
 
 
 from evalBezierFuncs_3P import *
+from attitude_ekf import AttitudeEKF
+from phase_ekf import PhaseEKF
 import callibrate_angles_nls as ca
+from gait_model import  GaitModel
 
 from filter_classes import FirstOrderLowPassLinearFilter, FirstOrderHighPassLinearFilter
 from heel_strike_detector import HeelStrikeDetector
@@ -119,9 +122,7 @@ def runPB_EKF(exo_right, writer, fd_l, am, run_time = 60*10):
     
 
     sigma_shank = 7
-
     sigma_shank_vel = 20
-
 
     # #FULL
     R_meas = np.diag([
@@ -284,13 +285,12 @@ def runPB_EKF(exo_right, writer, fd_l, am, run_time = 60*10):
         # print('Theta (about +y): ' + str(  round(theta ,4) *180/np.pi))
         # print('Phi (about +z): ' + str(  round(phi ,4)*180/np.pi ))
 
-        ankleAngle = sideMultiplier * ((ankleAngle_buffer * countToDeg ) - ankleAngleOffset)
         # print('ankleAngle')
         # print(ankleAngle)
         # print(ankleAngle_buffer/10)
 
 
-        shankAngle_meas = attitude_ekf.get_useful_angles(ankleAngle, sideMultiplier)
+        shankAngle_meas = attitude_ekf.get_useful_angles(sideMultiplier)
 
         shankAngle_meas = shankAngle_meas - shankAngleOffset + SHANK_ANGLE_OFFSET_VICON
 

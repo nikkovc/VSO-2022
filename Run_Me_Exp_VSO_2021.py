@@ -10,6 +10,23 @@ from LS7366R import LS7366R
 from Functions_Exp_VSO_2021 import *
 import traceback
 import wiringpi as wp
+import numpy as np
+
+#import EKF 
+import os, sys
+thisdir = os.path.dirname(os.path.abspath(__file__))
+print(thisdir)
+sys.path.append(thisdir)
+sys.path.append(thisdir + '/EKF')
+
+from evalBezierFuncs_3P import *
+from attitude_ekf import AttitudeEKF
+from phase_ekf import PhaseEKF
+import callibrate_angles_nls as ca
+from gait_model import GaitModel
+from filter_classes import FirstOrderLowPassLinearFilter, FirstOrderHighPassLinearFilter
+from heel_strike_detector import HeelStrikeDetector
+
 
 
 # Set up wiringpi pins to be GPIO
@@ -25,6 +42,70 @@ wp.pinMode(disable_pin, 1)
 wp.pinMode(dir_pin, 1)
 wp.pinMode(pwm_pin, 2)
 
+#Set up scaling factors for IMU==========
+accelScaleFactor = 8192 #LSB/g
+gyroScaleFactor = 32.8 #LSB/ deg/s
+
+#account for small biases in the gyro measurment, in the IMU frame in rad/s
+gyroX_IMU_bias = 0.021065806164927196
+gyroY_IMU_bias = 0.01037782833021424
+gyroZ_IMU_bias = 0.007913779656035359
+
+#set up rotation matrices for the IMU
+theta_correction = 39.1090 * np.pi/180
+#correct to non tilted axes
+Rot_unskew = np.array(  [[np.cos(theta_correction), -np.sin(theta_correction),0],[np.sin(theta_correction), np.cos(theta_correction),0],[0, 0, 1]])
+# correct to z up, x forward, y left
+Rot1 = np.array( [[1, 0, 0],[0,np.cos(-np.pi/2), -np.sin(-np.pi/2)],[0,np.sin(-np.pi/2), np.cos(-np.pi/2)]] )
+Rot2 = np.array( [[np.cos(-np.pi/2), 0 ,np.sin(-np.pi/2)],[0,1, 0],[-np.sin(-np.pi/2),0, np.cos(-np.pi/2)]]  )
+
+Rot_correct = Rot_unskew
+
+#set up EKF parameters
+attitude_ekf_args = {'sigma_gyro':0.0023,
+                            'sigma_accel': 0.0032*5*1/5,
+                            'sigma_q_AE':1e2,
+                            'Q_pos_scale':1e-10}
+
+#measurement covariance matrix
+sigma_shank = 7
+sigma_shank_vel = 20
+
+R_meas = np.diag([
+	sigma_shank**2,
+	sigma_shank_vel**2,
+	])
+
+#process noise
+sigma_q_phase=0
+sigma_q_phase_dot=6e-4
+
+attitude_ekf=AttitudeEKF(**attitude_ekf_args)
+
+gait_model = GaitModel('EKF/GaitModel/VSPA_gait_model.csv',phase_order=20)
+phase_ekf_args = {'gait_model':gait_model,
+		'torque_profile':None,
+		'R_meas':R_meas,
+		'sigma_q_phase':sigma_q_phase,
+		'sigma_q_phase_dot':sigma_q_phase_dot,
+		}
+
+phase_ekf = PhaseEKF(**phase_ekf_args)
+
+#set up variables that control how often the attitude EKF updates
+updateFHfreq = 20
+isUpdateTime = True
+
+#set up shank angle offset (We'll eventually need to add the calibration procedure here)
+shankAngleOffset = 0
+
+#set up side multiplier that changes sign of estimated shank angles
+side = 'right'
+sideMultiplier = 1
+if (side == "left" or side == "l"):
+    sideMultiplier = -1
+elif (side == "right" or side == "r"):
+    sideMultiplier = 1
 
 # Sensor and Motor initialization==============================================================================
 #Inertial Measurement Unit
@@ -521,6 +602,43 @@ while True:
 				#imu_window.append(0)
 				imu_window.pop(0)
 				imu = numpy.mean(imu_window)
+
+				#===============EKF CODE BLOCK===============
+				#read from IMU for EKF
+				accelX = exoState.accelx/accelScaleFactor # in units of g
+				accelY = exoState.accely/accelScaleFactor
+				accelZ = exoState.accelz/accelScaleFactor
+
+				gyroX = exoState.gyrox/gyroScaleFactor * np.pi/180 #in units of rad/s
+				gyroY = exoState.gyroy/gyroScaleFactor * np.pi/180
+				gyroZ = exoState.gyroz/gyroScaleFactor * np.pi/180
+
+				accelVec = np.array([accelX,accelY,accelZ])
+				accelVec_corrected = Rot_correct @ (accelVec)
+				gyroVec = np.array([gyroX,gyroY,gyroZ])
+				gyroVec_corrected = Rot_correct @ (gyroVec)
+				gyroVec_corrected = gyroVec_corrected - Rot_correct @ np.array([gyroX_IMU_bias,gyroY_IMU_bias,gyroZ_IMU_bias])
+
+
+				#step through EKFs
+				isUpdateTime = (timeSec % 1/updateFHfreq  < 1e-2)
+				attitude_ekf.step(i, dt, isUpdateTime)
+				phase_ekf.step(i,dt)
+
+				#attitude EKF measurement step
+				attitude_ekf.measure(i, gyroVec_corrected, accelVec_corrected, isUpdateTime, CORRECT_VICON=True)
+				
+				shankAngle_meas = attitude_ekf.get_useful_angles(sideMultiplier)
+				shankAngle_meas = shankAngle_meas - shankAngleOffset
+
+				shankAngleVel_meas = sideMultiplier * -1 * gyroVec_corrected[1] * 180/np.pi
+				z_measured = np.array([shankAngle_meas, shankAngleVel_meas])
+
+				#update phase EKF
+				phase_ekf.update(i, dt, z_measured)
+				x_state_update = phase_ekf.get_x_state_update()
+
+				#===============END EKF CODE BLOCK===============
 
 
 				last_position = current_position

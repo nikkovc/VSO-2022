@@ -135,7 +135,7 @@ class AttitudeEKF():
 
 
         
-    def get_useful_angles(self, ankleAngle, sideMultiplier=1):
+    def get_useful_angles(self, sideMultiplier=1):
 
         time0 = time()
         psi,theta,phi = self.get_euler_angles()

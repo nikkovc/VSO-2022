@@ -2,10 +2,9 @@ import numpy as np
 from time import time
 from evalBezierFuncs_3P import *
 from evalFourierFuncs_3P import *
-from arctanMapFuncs import *
 
 
-class GaitModel_Fourier():
+class GaitModel():
 
 	def __init__(self, model_filepath ,phase_order=20):
 		self.best_fit_params_shankAngle = self.loadCoefficients(model_filepath)
@@ -13,11 +12,11 @@ class GaitModel_Fourier():
 
 
 	def loadCoefficients(self,filename):
-	    data = np.loadtxt(filename,delimiter=',')
+		data = np.loadtxt(filename,delimiter=',')
 
-	    best_fit_params_shankAngle = data[0,:]
+		best_fit_params_shankAngle = data[0,:]
 
-	    return best_fit_params_shankAngle
+		return best_fit_params_shankAngle
 
 	#KINEMATICS
 	def returnShankAngle(self, phase):
